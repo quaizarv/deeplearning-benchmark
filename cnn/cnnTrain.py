@@ -63,8 +63,8 @@ def cnn_train():
   # Configuration
 
   # Load MNIST Train
-  images = load_MNIST_images('../../common/train-images-idx3-ubyte')
-  labels = load_MNIST_labels('../../common/train-labels-idx1-ubyte')
+  images = load_MNIST_images('../mnist/train-images-idx3-ubyte')
+  labels = load_MNIST_labels('../mnist/train-labels-idx1-ubyte')
 
   #images = images[0:10000]
   #labels = labels[0:10000]
@@ -92,7 +92,7 @@ def cnn_train():
   #======================================================================
   # STEP 1: Gradient Check
 
-  DEBUG = True;  # set this to true to check gradient
+  DEBUG = False;  # set this to true to check gradient
   if DEBUG:
     # To speed up gradient checking, we will use a reduced network and
     # a debugging data set
@@ -162,8 +162,8 @@ def cnn_train():
   #  test the performance of the trained model using the mnist test set. your
   #  accuracy should be above 97# after 3 epochs of training
 
-  test_images = load_MNIST_images('../common/t10k-images-idx3-ubyte')
-  test_labels = load_MNIST_labels('../common/t10k-labels-idx1-ubyte')
+  test_images = load_MNIST_images('../mnist/t10k-images-idx3-ubyte')
+  test_labels = load_MNIST_labels('../mnist/t10k-labels-idx1-ubyte')
   #test_images = test_images[0:1000]
   #test_labels = test_labels[0:1000]
   cnn_test_config = CNNConfig(

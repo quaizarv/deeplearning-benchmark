@@ -98,15 +98,15 @@ def ae_train():
   #======================================================================
   # STEP 2: Train the autoencoder
 
-  print params_array.dtype
-  print params_array.shape
+  t1 = time.time()
   #x = np.array(params_array, np.float64)
   (opttheta, cost, _) = scipy.optimize.fmin_l_bfgs_b(
     lambda p: sparse_ae_cost(p, ae_config, patches),
     params_array,
-    maxiter = 4000, iprint = 0)
+    maxiter = 1000, iprint = 0)
+  print time.time() - t1
 
   (W1, _, _, _) = ae_array_to_stack(opttheta, ae_config)
   display_network(W1, 5)
   
-  return cost
+  return (cost, opttheta)

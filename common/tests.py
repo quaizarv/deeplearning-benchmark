@@ -6,7 +6,7 @@ import scipy
 import numpy as np
 from loadMNISTImages import *
 from loadMNISTLabels import *
-from cnnUtils import *
+from utils import *
 import theano
 import theano.tensor as T
 from scipy.signal import *
@@ -249,10 +249,29 @@ def upsample_NP(A, pool_dim):
 
 
 from theano.sandbox.linalg import kron
-m1 = T.dmatrix("m1")
-m2 = T.dmatrix("m2")
+m1 = T.matrix("m1", dtype = floatX1)
+m2 = T.matrix("m2", dtype = floatX1)
 mmult_out = T.dot(m1, m2)
 dot = theano.function([m1, m2], mmult_out)
+
+f_W = T.matrix("f_w", dtype = floatX1)
+data_mat = T.matrix("data_mat", dtype = floatX1)
+
+InterceptBroadcaster2D = T.TensorType(dtype = floatX1,
+                                      broadcastable = [False, True])
+f_b = InterceptBroadcaster2D('f_b')
+#f_b = T.matrix("f_b", dtype = floatX1)
+fm_out = T.dot(f_W, data_mat) + f_b
+filter_multiply = theano.function([f_W, f_b, data_mat], fm_out,
+                                  name = 'filter_multiply')
+m1_transp = m1.dimshuffle(1, 0)
+m2_transp = m2.dimshuffle(1, 0)
+mmtm_out = T.dot(m1, m2_transp)
+matrix_matrix_transpose_multiply = theano.function([m1, m2], mmtm_out)
+
+mtmm_out = T.dot(m1_transp, m2)
+matrix_transpose_matrix_multiply = theano.function([m1, m2], mtmm_out)
+
 
 def mmult_test():
   A = np.random.random((2000, 10))

@@ -1,2 +1,2 @@
-from numpyWrappers import *
-#from theanoWrappers import *
+#from numpyWrappers import *
+from theanoWrappers import *

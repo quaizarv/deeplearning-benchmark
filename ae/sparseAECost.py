@@ -56,7 +56,8 @@ def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
                                                   -rho/elem + (1-rho)/(1-elem),
                                                   rho_hat))),
                     sigmoid_gradient(a2))
-  W1grad = scalar_multiply(1.0/m, matrix_matrix_transpose_multiply(delta2, a1))
+  W1grad = scalar_multiply(1.0/m,
+                           matrix_matrix_transpose_multiply(delta2, a1))
   W1grad = plus(W1grad, scalar_multiply(lamda, W1))
   b1grad = scalar_multiply(1.0/m, sum_by_row(delta2))
   reshape(b1grad, (size(delta2, 1), 1))

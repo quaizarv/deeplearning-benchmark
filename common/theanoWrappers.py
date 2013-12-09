@@ -208,7 +208,16 @@ conv_fun = theano.function([A, B], conv_out, name = 'conv_fun')
 
 z = T.tensor4('z', dtype = floatX1)
 soft_th_out = 1 / (1 + T.exp(-z))
-soft_threshold = theano.function([z], soft_th_out, name = 'soft_threshold')
+soft_th_fun = theano.function([z], soft_th_out, name = 'soft_th_fun')
+
+def soft_threshold(z):
+  zshape = z.shape
+  if (len(z.shape) == 2):
+    z.shape = (1, 1, zshape[0], zshape[1])
+  R = soft_th_fun(z)
+  R.shape = zshape
+  z.shape = zshape
+  return R
 
 InterceptBroadcaster = T.TensorType(dtype = floatX1,
                                     broadcastable = [True, False, True, True])
@@ -276,10 +285,11 @@ def upsample(activations, pool_dim):
   #return arrayfun(lambda elem: (1.0/(pool_dim * pool_dim)) * elem,
 
 from theano.sandbox.linalg import kron
-upsample_inp = T.vector("upsample_input", dtype = floatX)
-upsample_f = T.matrix("upsample_filter", dtype = floatX)
-kron_out = kron(upsample_inp, upsample_f)
-kron_fun = theano.function([upsample_inp, upsample_f], kron_out,
+upsample_pd = T.scalar("upsample_pool_dim", dtype = floatX1)
+upsample_inp = T.vector("upsample_input", dtype = floatX1)
+upsample_f = T.matrix("upsample_filter", dtype = floatX1)
+kron_out = kron(upsample_inp, upsample_f) * (1.0/ (upsample_pd ** 2))
+kron_fun = theano.function([upsample_inp, upsample_f, upsample_pd], kron_out,
                            name = 'kron_fun')
 
 def upsample_T4(A, pd):
@@ -287,9 +297,10 @@ def upsample_T4(A, pd):
   Ashape = A.shape
   A = A.reshape(A.size)
   l = Ashape[0] * Ashape[1] * Ashape[2]
-  R = kron_fun(A, B)
+  R = kron_fun(A.astype(floatX1), B.astype(floatX1), pd)
   R = R.reshape(l,Ashape[3],pd,pd).swapaxes(1, 2).reshape(Ashape[0], Ashape[1], Ashape[2] * pd, Ashape[3] * pd)
   A.shape = Ashape
+  #R = R * (1.0/(pd * pd))
   return R
 
 def upsample_T4_old(A, pd):
@@ -310,20 +321,35 @@ def upsample_T4_old(A, pd):
 #
 ################################################################################
 
-def matrix_transpose_matrix_multiply(m1, m2)
-  """ Perform (m1' x m2)
-  """
-  return np.dot(np.transpose(m1), m2))
-
-def matrix_matrix_transpose_multiply(m1, m2)
-  """ Perform (m1 x m'2)
-  """
-  return np.dot(m1, np.transpose(m2))
-
+InterceptBroadcaster2D = T.TensorType(dtype = floatX1,
+                                      broadcastable = [False, True])
+f_W = T.matrix("f_w", dtype = floatX1)
+data_mat = T.matrix("data_mat", dtype = floatX1)
+f_b = InterceptBroadcaster2D('f_b')
+#f_b = T.matrix("f_b", dtype = floatX1)
+fm_out = T.dot(f_W, data_mat) + f_b
+fm_fun = theano.function([f_W, f_b, data_mat], fm_out,
+                                  name = 'filter_multiply')
 def filter_multiply(filter, intercept, data_matrix):
-  """ Perform (filter x data_matrix + intercept)
-  """
-  return plus(np.dot(filter, data_matrix), intercept)
+  return fm_fun(filter.astype(floatX1), 
+                intercept.astype(floatX1),
+                data_matrix.astype(floatX1))
+
+m1 = T.matrix("m1", dtype = floatX1)
+m2 = T.matrix("m2", dtype = floatX1)
+m1_transp = m1.dimshuffle(1, 0)
+m2_transp = m2.dimshuffle(1, 0)
+mmtm_out = T.dot(m1, m2_transp)
+mmtm_fun = theano.function([m1, m2], mmtm_out, name = 'mat_mat_trans_multiply')
+
+def matrix_matrix_transpose_multiply(m1, m2):
+  return mmtm_fun(m1.astype(floatX1), m2.astype(floatX1))
+
+mtmm_out = T.dot(m1_transp, m2)
+mtmm_fun = theano.function([m1, m2], mtmm_out, name = 'mat_trans_mat_multiply')
+
+def matrix_transpose_matrix_multiply(m1, m2):
+  return mtmm_fun(m1.astype(floatX1), m2.astype(floatX1))
 
 
 ################################################################################
