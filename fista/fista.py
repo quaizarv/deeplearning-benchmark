@@ -6,7 +6,7 @@ from buildDict import *
 from numpy.linalg import norm
 
 def shrink(x, T):
-  if (np.sum(abs(T)) < 1e-12):
+  if (np.sum(abs(T)) == 0):
     y = x
   else:
     y = np.maximum(abs(x) - T, 0)
@@ -27,17 +27,21 @@ def solve_fista(W, inp_vec):
   t_km1 = 1 
 
   G = np.dot(np.transpose(W), W)
+  (U, D, V) = np.linalg.svd(G);
+  L0 = D[0]
+  #L0 = 1
   c = np.dot(np.transpose(W), inp_vec)
   # sk = zeros(n,1) 
   (sk, _, _, _) = np.linalg.lstsq(W, inp_vec)
 
-  L0 = 1 
-  lamda = 0.5*L0*norm(c,np.inf) 
+  #L0 = 1 
+  lamda = 0.5*norm(c,np.inf) 
   # lamda_bar = 1e-10*lamda0 
   lamda_bar = 1e-6
   L = L0 
 
-  beta = 1.5 
+  print "L ", L
+
   eta = 0.95 
 
   skm1 = sk
@@ -47,19 +51,9 @@ def solve_fista(W, inp_vec):
     yk = sk + ((t_km1-1)/t_k)*(sk-skm1) 
     grad = np.dot(G, yk) - c  # gradient of cost function at yk
     
-    stop_backtrack = 0
-    while (stop_backtrack == 0):
-      skp1 = yk - (1/L)*grad
-      skp1 = shrink(skp1, lamda/L) 
-      temp1 = 0.5*(norm(inp_vec - np.dot(W,skp1))**2)
-      temp2 = (0.5*(norm(inp_vec - np.dot(W,yk))**2) + 
-      np.dot(np.transpose(skp1-yk), grad) + (L/2)*(norm(skp1 - yk)**2))
+    skp1 = yk - (1/L)*grad
+    skp1 = shrink(skp1, lamda/L) 
 
-      if (temp1 <= temp2):
-        stop_backtrack = 1 
-      else:
-        L = L*beta 
-    
     lamda = max(eta*lamda,lamda_bar) 
     t_kp1 = 0.5*(1+np.sqrt(1+4*t_k*t_k)) 
     t_km1 = t_k 
@@ -67,9 +61,10 @@ def solve_fista(W, inp_vec):
     skm1 = sk 
     sk = skp1 
 
-    cost = (0.5*(norm(inp_vec - np.dot(W, sk))**2) + lamda_bar * norm(sk,1))
+    cost1 = 0.5*(norm(inp_vec - np.dot(W, sk))**2)
+    cost2 = norm(sk,1)
     if (nIter % 20 == 0):
-      print "iteration: ", nIter, " cost: ", cost
+      print "iteration: ", nIter, " cost: ", cost1, cost2
   return sk
 
 
