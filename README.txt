@@ -18,10 +18,13 @@ For profiling in Theano, run with following command lines:
 THEANO_FLAGS=mode=ProfileMode,device=gpu python <program_name>.py
 THEANO_FLAGS=mode=ProfileMode,device=cpu python <program_name>.py
 
-Add <dl-benchmark-dir>/common directory to your PYTHONPATH, wher
+Add <dl-benchmark-dir>/common directory to your PYTHONPATH, where
 <dl-benchmark-dir> is the name of the directory where you pulled
 deeplearning-benchmark repositary:
   PYTHONPATH=<deeplearning-benchmark-dir>/common/:$PYTHONPATH
+
+Also download mnist dataset from http://yann.lecun.com/exdb/mnist/ into
+a directory called mnist under <dl-benchmark-dir> directory
 
 Source Code Layout
 ==================
