@@ -18,6 +18,10 @@ For profiling in Theano, run with following command lines:
 THEANO_FLAGS=mode=ProfileMode,device=gpu python <program_name>.py
 THEANO_FLAGS=mode=ProfileMode,device=cpu python <program_name>.py
 
+Add <dl-benchmark-dir>/common directory to your PYTHONPATH, wher
+<dl-benchmark-dir> is the name of the directory where you pulled
+deeplearning-benchmark repositary:
+  PYTHONPATH=<deeplearning-benchmark-dir>/common/:$PYTHONPATH
 
 Source Code Layout
 ==================
