@@ -22,6 +22,7 @@ def load_MNIST_labels(filename):
     labels = np.array(struct.unpack(str(len(labels_str)) + 'B',
                                     labels_str[0:len(labels_str)]))
 
+    #convert to appropriate float size 
     return labels.astype(floatX)
 
   finally:

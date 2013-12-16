@@ -1,2 +1,2 @@
 from cnnTrain import *
-(o, p, t) = cnn_train()
+(opt_theta, pred) = cnn_train()

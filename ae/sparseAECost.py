@@ -6,7 +6,11 @@ from aeUtils import *
 def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
   """compute cost and gradient for an Auto Encoder
 
-  ae_config: collection of a parameters
+  Parameters:
+
+  params_array - contains all the paramters/weights in a flat array
+
+  ae_config -  collection of configuration parameters
     visibleSize: the number of input units (probably 64) 
     hiddenSize: the number of hidden units (probably 25) 
     lamda: weight decay parameter
@@ -14,12 +18,18 @@ def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
     beta: weight of sparsity penalty term
     data: Our 10000x64 matrix containing the training data.
           So, data(i, :) is the i-th training example. 
+
+  data - input data
+
+  cost_only - boolean, if only cost needs to be computed
   
     The input param_stack is a vector (because minFunc expects the parameters to
-    be a vector).  We first convert theta to the (W1, W2, b1, b2) matrix/vector
-    format, so that this follows the notation convention of the lecture notes.
+    be a vector).  We convert theta to the (W1, W2, b1, b2) matrix/vector
+    format for the computation below
 
   """
+
+  # Unroll the paramter array
 
   visible_size = ae_config.visible_size
   hidden_size = ae_config.hidden_size
@@ -27,6 +37,9 @@ def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
   lamda = ae_config.lamda
   beta = ae_config.beta
   (W1, W2, b1, b2) = ae_array_to_stack(params_array, ae_config)
+
+
+  # Forward propagation
 
   m = size(data,2)
   a1 = data
@@ -36,12 +49,18 @@ def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
   a3 = soft_threshold(z3)
   rho_hat = scalar_multiply((1.0/m), sum_by_row(a2))
   reshape(rho_hat, (size(rho_hat, 1), 1))
+
+  # Cost computation
+
+  # Sparsity Penalty
   Jspars = sparse_cost(beta, rho, rho_hat)
   Jsqerr = squared_error(a1, a3)
   Jreg = (lamda/2.0) * (matrix_sum(multiply(W2, W2)) + matrix_sum(multiply(W1, W1)))
   cost = Jsqerr + Jreg + Jspars
   if (cost_only):
     return (cost, None)
+
+  #delta and gradient computation
 
   delta3 = (a3 - a1) * sigmoid_gradient(a3)
   W2grad = (1.0/m) * np.dot(delta3, np.transpose(a2))
@@ -62,6 +81,7 @@ def sparse_ae_cost(params_array, ae_config, data, cost_only = False):
   b1grad = scalar_multiply(1.0/m, sum_by_row(delta2))
   reshape(b1grad, (size(delta2, 1), 1))
 
+  # Put the gradients back to a flat array 
   grad_array = zeros(size(params_array))
   (W1_g, W2_g, b1_g, b2_g) = ae_array_to_stack(grad_array, ae_config)
   W1_g[:] = W1grad

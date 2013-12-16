@@ -11,7 +11,7 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   Parameters:
   theta       -  unrolled parameter vector
   images      -  stores images in num_images x image_dim x image_dim
-  array
+                 array
   labels      -  image labels                     
   pred        -  boolean only forward propagate and return predictions
   grad_stack  -  stores the theta gradients in a long flat array
@@ -20,8 +20,6 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   Returns:
   cost       -  cross entropy cost
   preds      -  list of predictions for each example (if pred==True)
-  gradients  -  gradient with respect to theta (if pred==False) are returned
-  in the grad_stack argument
   """
   num_images = cnn_config.num_images
   image_dim = cnn_config.image_dim
@@ -30,8 +28,6 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   pool_dim = cnn_config.pool_dim
   num_classes = cnn_config.num_classes
 
-  # Reshape parameters and setup gradient matrices
-  #
   # Wc is filter_dim x filter_dim x num_filters parameter matrix
   # bc is the corresponding bias
   #
@@ -41,8 +37,8 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   (Wc, Wd, bc, bd) = theta_tuple
 
   #======================================================================
-  # STEP 1a: Forward Propagation
-  #
+  # Forward Propagation
+  #======================================================================
   conv_dim = image_dim-filter_dim+1  # dimension of convolved output
   out_dim = conv_dim/pool_dim     # dimension of subsampled output
 
@@ -60,7 +56,8 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   probs = softmax(plus(probs, bd))
 
   #======================================================================
-  # STEP 1b: Calculate Cost
+  # Calculate Cost
+  #======================================================================
 
   cost = 0  # save objective into cost
 
@@ -72,13 +69,14 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   # Makes predictions given probs and returns without backproagating errors.
   preds = 0
   if (velocity_tuple == None):
-    #TBD: should pred be returned as a column vector (i.e. of size (n, 1))
-    # or a simply array
+    #TBD: preds should be mapped from API to numpy format
     preds = argmax_by_column(probs)
     return (cost, preds)
     
   #======================================================================
-  # Backpropagation & Gradient Computation
+  # Backpropagation & Gradient Computation - Note that SGD update to
+  # the weights is done inline below
+  #======================================================================
     
   # Compute the error at the output layer (softmax)
   delta_softmax = minus(probs, labels_matrix)
@@ -94,7 +92,7 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
 
   # Add in the weighted velocity vector to the gradient evaluated above scaled
   # by the learning rate.  Then update the current weights theta according to
-  # the sgd update rule
+  # the SGD update rule
   Wd_velocity[:] = plus(scalar_multiply(mom,  Wd_velocity),
                         scalar_multiply(alpha, Wd_grad))
   bd_velocity[:] = plus(scalar_multiply(mom,  bd_velocity),
@@ -109,34 +107,15 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   delta_conv = multiply(upsample_T4(delta_pool, pool_dim),
                         sigmoid_gradient(activations))
 
-  """
-  delta_conv = zeros((conv_dim, conv_dim, num_filters, num_images))
-  for image_num in range(0, num_images):
-    for filter_num in range(0, num_filters):
-      delta_p = get_matrix(delta_pool, (filter_num, image_num))
-      delta_c = upsample(delta_p, pool_dim)
-      acts = get_matrix(activations, (filter_num, image_num))
-      set_matrix(delta_conv, (filter_num, image_num),
-                 multiply(delta_c, sigmoid_gradient(acts)))
-  """
-
-  # Compute Wc Gradient
-  #Wc_grad = zeros(size(Wc))
-  #bc_grad = zeros(size(bc))
-  #for image_num in range(0, num_images):
-    #for filter_num in range(0, num_filters):
-      #filter_grad = get_matrix(Wc_grad, filter_num)
-      #delta_c = get_matrix(delta_conv, (filter_num, image_num))
-      #image = get_matrix(images, image_num)
-      #set_matrix(Wc_grad, filter_num,
-      #           plus(filter_grad, convolve_2d(image, delta_c)))
-      #bc_grad[filter_num][0] += delta_c.sum()
   Wc_grad = grad_conv_T4(images, delta_conv)
   bc_grad = delta_conv.sum((0, 2, 3)).reshape((num_filters, 1))
 
   Wc_grad = scalar_multiply(1.0/num_images, Wc_grad)
   bc_grad = scalar_multiply(1.0/num_images, bc_grad)
     
+  # Add in the weighted velocity vector to the gradient evaluated above scaled
+  # by the learning rate.  Then update the current weights theta according to
+  # the SGD update rule
   Wc_velocity[:] = plus(scalar_multiply(mom,  Wc_velocity),
                         scalar_multiply(alpha, Wc_grad))
   bc_velocity[:] = plus(scalar_multiply(mom,  bc_velocity),
@@ -147,8 +126,11 @@ def cnn_cost(theta_tuple, images, labels, cnn_config,
   return (cost, preds)
   
 
-def cnn_cost_with_gradient(theta, images, labels, cnn_config, preds = False):
 
+def cnn_cost_with_gradient(theta, images, labels, cnn_config, preds = False):
+  """ Make cnn_cost compatible with flattened paramter array in support of
+      numerical gradient computation
+  """
   theta_tuple = array_to_stack(theta, cnn_config)
 
   velocity_array = None

@@ -1,7 +1,7 @@
 import scipy
 from scipy.signal import *
 import numpy
-from numpyWrapperPrivate import *
+from arrayIndexMapping import *
 import theano
 import theano.tensor as T
 from theano.tensor.signal import conv
@@ -23,6 +23,15 @@ floatX = 'float64'
 ################################################################################
 
 def size(arr, dim = -1):
+  """Get size of an array either in a particular dimension or for all
+  dimensions
+
+    Parameters:
+     arr: array whose size needs to be extracted
+
+     dim: a particual dimension (axis) or -1 if the size of the entire array
+          is required
+  """
   if (dim == -1):
     return api_dim_tuple(arr.shape)
   return arr.shape[numpy_dim(arr, dim)]
@@ -39,33 +48,26 @@ def zeros(dim_tuple):
   """
   return np.zeros(numpy_dim_tuple(dim_tuple), dtype = floatX)
 
-def get_matrix(arr, index_tuple):
-  """Extract a matrix from a array of matrices
-  
-     If the array has dimensions (d1, d2, d3, d4, d5) - then the matrix
-     corresponds to first 2 dimensions, i.e. (d1, d2) and is located at index
-     (:, :, d3, d4, d5). Pass in (d3, d4, d5) as the index_tuple to locate the
-     matrix
+def load_array(np_array1d, fortran_dim_tuple):
+  """API definition: 
+         copy data from a 1-dimensional NUMPY array to a multi-dimensional
+     array in the API implementation specific format
 
      Parameters:
-       index_tuple : identifies the matrix position in the multi-dimensional
-                     array
-  """
-  return arr[numpy_index_tuple(arr, index_tuple)]
+      np_array1d: 1-dimenstional array in numpy format
+      dim_tuple: array dimensions in Fortran order
 
-def set_matrix(arr, index_tuple, matrix):
-  """Save a matrix to an array of matrices
-  
-     If the array has dimensions (d1, d2, d3, d4, d5) - then the matrix occupies
-     the space corresponding to last 2 dimensions, i.e. (d4, d5) and is located
-     at index (d1, d2, d3). Pass in (d1, d2, d3) as the index_tuple to locate
-     the matrix
-
-     Parameters:
-       index_tuple : identifies the matrix position in the multi-dimensional
-                     array
+     Return:
+      Multi-dimensional array with shape as 'dim_tuple'
   """
-  arr[numpy_index_tuple(arr, index_tuple)] = matrix
+
+  """
+     API implementation in NUMPY: 
+  """
+  api_data = np.zeros(np_array1d.shape)
+  api_data[:] = np_array1d[:]
+  api_data.shape = numpy_dim_tuple(fortran_dim_tuple)
+  return api_data
 
 def reshape(arr, dim_tuple):
   """Reshape the array as specified by the passed dimension tuple 
@@ -76,6 +78,16 @@ def reshape(arr, dim_tuple):
   arr.shape = numpy_dim_tuple(dim_tuple)
 
 def get_array_view(array1d, start, dim_tuple):
+  """ Extract a multi-dimensional array from a large flat 1-dimenstional array
+  
+      Parameters:
+       array1d: large 1-dim array
+       start: start of the multidimensional array in array1d
+       dim_tuple: shape of the output array
+
+      Return:
+        multi-dimensional array 
+  """
   dim_tuple = numpy_dim_tuple(dim_tuple)
   end = start + reduce(lambda sz, dim: sz * dim, dim_tuple)
   result_array = array1d[start:end]
@@ -83,12 +95,17 @@ def get_array_view(array1d, start, dim_tuple):
   return (result_array, end)
 
 def filter_init_randn(filter):
+  """ Initial a filter array randomly from a normal distribution
+  """
   filter_shape = filter.shape
   filter.shape = (filter.size, )
   filter[0:filter.size] = (0.1) * np.random.randn(filter.size).astype(floatX)
   filter.shape = filter_shape
 
 def filter_init_rand(filter, interval):
+  """ Initial a filter array randomly from a unifrom distribution given
+      by the interval tuple
+  """
   filter_shape = filter.shape
   filter.shape = (filter.size, )
   (l, u) = interval
@@ -96,8 +113,10 @@ def filter_init_rand(filter, interval):
   filter.shape = filter_shape
 
 def extract_random_minibatch(dst_data, dst_labels, src_data, src_labels, rp):
+  """ Extract a minibatch of data using a random permutation of indices
+  """
   for i in (range(size(rp, 1))):
-    set_matrix(dst_data, i, get_matrix(src_data, rp[i]))
+    dst_data[i] = src_data[rp[i]]
     dst_labels[i] = src_labels[rp[i]]
     #dst_data[i,:,:] = src_data[rp[i], :, :]
 
@@ -124,6 +143,11 @@ def reducefun(f, A, dim):
 ################################################################################
 
 def matrix_matrix4D_multiply(A, B):
+  """Multiply 2 dimensional matrix A with a 4-dimensional tensor B - this
+    is equivalent of flattening out the last 2-dimensions of B 
+    and then multiplying A to the resulting matrix of B 
+  """
+
   # Reshape activations into 2-d matrix with the last dimension as column
   # dimension of the matrix
 
@@ -136,6 +160,10 @@ def matrix_matrix4D_multiply(A, B):
   return np.dot(A, B_transpose)
 
 def matrix_matrix4D_transpose_multiply(A, B):
+  """Multiply 2 dimensional matrix A with the transpose of a 4-dimensional
+    tensor B - this is equivalent of flattening out the last 2-dimensions of B
+    and then multiplying A to the transpose of the resulting matrix of B
+  """
 
   # Given numpy's ordering of array dimensions reshaping B gives us the
   # transpose
@@ -146,11 +174,10 @@ def matrix_matrix4D_transpose_multiply(A, B):
   return result
 
 def matrix_matrix_transpose_multiply_to_4D(A, B, dim_tuple):
-  """ Perform (filter' x data_matrix)
+  """ Multiply 2 matrices and reshape the result into a 4-dimenstional tensor.
+      "dim_tuple" specifies the shape of the resulting tensor.
+  """
 
-      Perform a matrix multiplication between transpose of the 'filter' matrix
-      and the 'data_matrix'
-    """
   result = np.dot(np.transpose(A), B)
 
   # Deal with numpy's 3-2-1 indexing - if A is (M,K) and B is (K,N) then result
@@ -175,7 +202,7 @@ def bit_numbers_to_bit_vectors(bit_count, bit_num_array):
     bit_matrix[bit_num_array[i], i] = 1
   return bit_matrix
 
-def matrix_dot_product(A, B):
+def matrix_elemwise_multiply(A, B):
   return (A * B).sum()
 
 def argmax_by_column(A):
@@ -189,6 +216,7 @@ def argmax_by_column(A):
 
 
 def rot180_T4(A):
+  # building block for convolve in Theano
   Ashape = A.shape
   if (len(A.shape) < 4):
     A.shape = (Ashape[0], 1, Ashape[1], Ashape[2])
@@ -211,6 +239,8 @@ soft_th_out = 1 / (1 + T.exp(-z))
 soft_th_fun = theano.function([z], soft_th_out, name = 'soft_th_fun')
 
 def soft_threshold(z):
+  """ Compute the sigmoid function on z
+  """
   zshape = z.shape
   if (len(z.shape) == 2):
     z.shape = (1, 1, zshape[0], zshape[1])
@@ -230,6 +260,10 @@ fc_fun = theano.function([A, fc_W, fc_b], soft_th_out,
                          name = 'filter_convolve_function')
 
 def filter_convolve(A, filter, intercept):
+  """Perform convolution of A with filter followed by addition of an
+  interncept term and then computing sigmoid function on the resulting 
+  tensor
+  """
   Ishape = intercept.shape
   intercept.shape = (1, Ishape[0], 1, 1)
   Ashape = A.shape
@@ -249,6 +283,10 @@ pool_sum = TSN.images2neibs(pool_inp, (pdim, pdim))
 pool_out = pool_sum.mean(axis=-1) 
 pool_fun = theano.function([pool_inp, pdim], pool_out, name = 'pool_fun')
 def average_pool_T4(A, pool_dim):
+  """ Compute average pooling for a 4-dimensional tensor - this is equivalent
+      to pooling over all the matrices stored in the 4-dim tensor
+  """
+
   # Warning: pool_fun returns a 1-D vector, we need to reshape it into a 4-D
   # tensor
   temp = pool_fun(A, pool_dim)
@@ -258,6 +296,8 @@ def average_pool_T4(A, pool_dim):
 
 
 def convolve_T4(A, B):
+  """ Convolve 4-dimensional tensor using 4-dimensional tensor B
+  """
   Ashape = A.shape
   if (len(A.shape) < 4):
     A.shape = (Ashape[0], 1, Ashape[1], Ashape[2])
@@ -270,6 +310,9 @@ def convolve_T4(A, B):
   return R
 
 def grad_conv_T4(A, B):
+  """ Convolve filter gradient in B with input data in A. B is a 4 dimensional
+      array while A is 3-dimensional. TBD - this needs a clearer description
+  """
   Ashape = A.shape
   if (len(A.shape) < 4):
     A.shape = (1, Ashape[0], Ashape[1], Ashape[2])
@@ -278,11 +321,6 @@ def grad_conv_T4(A, B):
   A.shape = Ashape
   return R
 
-def upsample(activations, pool_dim):
-  ups = np.kron(activations, np.ones((pool_dim, pool_dim),
-                                     dtype = floatX));
-  return ups * (1.0/(pool_dim * pool_dim))
-  #return arrayfun(lambda elem: (1.0/(pool_dim * pool_dim)) * elem,
 
 from theano.sandbox.linalg import kron
 upsample_pd = T.scalar("upsample_pool_dim", dtype = floatX1)
@@ -293,6 +331,10 @@ kron_fun = theano.function([upsample_inp, upsample_f, upsample_pd], kron_out,
                            name = 'kron_fun')
 
 def upsample_T4(A, pd):
+  """Perform the reverse of average pooling on a 4-dimensioanl tensor by
+      replicating an element in A "pd" times in the last 2 dimensions
+      and then averaging
+  """
   B = np.ones((1, pd*pd))
   Ashape = A.shape
   A = A.reshape(A.size)
@@ -301,15 +343,6 @@ def upsample_T4(A, pd):
   R = R.reshape(l,Ashape[3],pd,pd).swapaxes(1, 2).reshape(Ashape[0], Ashape[1], Ashape[2] * pd, Ashape[3] * pd)
   A.shape = Ashape
   #R = R * (1.0/(pd * pd))
-  return R
-
-def upsample_T4_old(A, pd):
-  B = np.ones((1, pd*pd))
-  Ashape = A.shape
-  A = A.reshape(A.size)
-  l = Ashape[0] * Ashape[1] * Ashape[2]
-  R = scipy.linalg.kron(A,B).reshape(l,Ashape[3],pd,pd).swapaxes(1, 2).reshape(Ashape[0], Ashape[1], Ashape[2] * pd, Ashape[3] * pd)
-  A.shape = Ashape
   return R
 
 
@@ -351,39 +384,5 @@ mtmm_fun = theano.function([m1, m2], mtmm_out, name = 'mat_trans_mat_multiply')
 def matrix_transpose_matrix_multiply(m1, m2):
   return mtmm_fun(m1.astype(floatX1), m2.astype(floatX1))
 
-
-################################################################################
-#
-# Following routines are currently NOT USED by CNN implementaion
-#
-# In case we move back to computing Wc gradient, by doing per-(image, filter)
-# convolve
-#
-################################################################################
-
-A = T.tensor4('conv_fun_A', dtype = floatX)
-B = T.tensor4('conv_fun_B', dtype = floatX)
-conv_out2 = T.nnet.conv2d(A, B)
-conv_fun2 = theano.function([A, B], conv_out2, name = 'conv_fun2')
-
-def convolve_T2(A, B):
-  A.shape = (1, 1, A.shape[0], A.shape[1])
-  B.shape = (1, 1, B.shape[0], B.shape[1])
-  C = conv_fun2(A, rot180_T4(B))
-  A.shape = (A.shape[2], A.shape[3])
-  B.shape = (B.shape[2], B.shape[3])
-  C.shape = (C.shape[2], C.shape[3])
-  return C
-
-# This will be needed in case we break filter_convolve into convolve, 
-# intercept add and threshold functions
-"""
-def filter_convolve(A, filter, intercept):
-  shape = intercept.shape
-  intercept.shape = (shape[0], 1, 1)
-  R = bsxfun(lambda x, y: x + y, convolve_T4(A, filter), intercept)
-  intercept.shape = shape
-  return R
-"""
 
 

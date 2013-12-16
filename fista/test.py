@@ -1,4 +1,4 @@
-from buildDict import *
+#from buildDict import *
 from fista import *
 
 #build_dict()

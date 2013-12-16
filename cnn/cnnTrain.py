@@ -6,22 +6,24 @@ import numpy
 from loadMNISTImages import *
 from loadMNISTLabels import *
 from utils import *
+from cnnUtils import *
 from cnnCost import *
 from computeNumGrad import *
 from minFuncSGD import *
 
 def cnn_init(cnn_config):
-  # Initialize parameters for a single layer convolutional neural
-  # network followed by a softmax layer.
-  #                            
-  # Parameters:
-  #  cnn_config  -  configuration for a single CNN layer, e.g. various
-  #                 dimensions
-  # Returns:
-  #  theta_tuple - tuple of parameter arrays with initialized weights
-  #  theta_array - unrolled paramter arrays into a vector
+  """Initialize parameters for a single layer convolutional neural
+     network followed by a softmax layer.
+                              
+     Parameters:
+       cnn_config  -  configuration for a single CNN layer, e.g. various
+                      dimensions
+     Returns:
+       theta_tuple - tuple of parameter arrays with initialized weights
+       params_array - unrolled paramter arrays into a vector
 
-  # Initialize parameters randomly based on layer sizes.
+     Initialize parameters randomly based on layer sizes.
+  """
 
   num_images = cnn_config.num_images
   image_dim = cnn_config.image_dim
@@ -45,6 +47,9 @@ def cnn_init(cnn_config):
   
   params_array = zeros(Wc_size + Wd_size + bc_size + bd_size)
   (Wc, Wd, bc, bd) = array_to_stack(params_array, cnn_config)
+
+  # Initialize parameter randomly from the normal distribution for the convolve
+  # layer
   filter_init_randn(Wc);
   
   # we'll choose weights uniformly from the interval [-r, r]
@@ -54,11 +59,43 @@ def cnn_init(cnn_config):
   theta_tuple = (Wc, Wd, bc, bd)
   return (theta_tuple, params_array)
 
+# Convert images and labels to the API implementation format
+def convert_images_labels_to_api_format(images, labels):
+  ishape = images.shape
+  images = images.reshape(images.size)
+  train_images = load_array(images, (ishape[1], ishape[2], ishape[0]))
+  images.shape = ishape
+
+  lshape = labels.shape
+  labels = labels.reshape(labels.size)
+  train_labels = load_array(labels, (lshape[0], ))
+  labels.shape = lshape
+  print train_labels.shape, train_images.shape
+  return (train_images, train_labels)
+
+
 def cnn_train():
   """ Main routine for training CNN parameters and testing them
+
+     Returns: 
+
+     opt_theta_tuple - a tuple of trained optimal parameters.
+       Includes (Wc, Wd, bc, bd)  where:
+       Wc - 3-dimensional tensor containing parameters for
+            convolutional layer filters. The first dimension
+            identifies the filter and the remaining 2 dimension
+            are for the filter paramters
+       Wd - parameter matrix for the softmax layer
+       bc - intercept terms, one per filter at the conv layer
+       bd - intercept terms, one per class in the softmax layer
+       
+  
+     preds -  list of predictions for each test data instance 
+
   """
   #======================================================================
-  # STEP 0: Initialize Parameters and Load Data
+  # Initialize Parameters and Load Data
+  #======================================================================
 
   # Configuration
 
@@ -66,8 +103,7 @@ def cnn_train():
   images = load_MNIST_images('../mnist/train-images-idx3-ubyte')
   labels = load_MNIST_labels('../mnist/train-labels-idx1-ubyte')
 
-  #images = images[0:10000]
-  #labels = labels[0:10000]
+  # Initialize configuration for the CNN layers
 
   CNNConfig = collections.namedtuple('CNNConfig', 
                                      ['num_images',
@@ -86,11 +122,19 @@ def cnn_train():
     num_classes = 10,  # Number of classes (MNIST images fall into 10 classes)
     )
 
+  # Convert images and labels to the API implementation format
+  (train_images, train_labels) = convert_images_labels_to_api_format(
+    images, labels)
+  #train_images = images
+  #train_labels = labels
+
   # Initialize Parameters
   (theta_tuple, _) = cnn_init(cnn_config)
+
                    
   #======================================================================
-  # STEP 1: Gradient Check
+  # Code for sanity checking of the gradient computation
+  #======================================================================
 
   DEBUG = False;  # set this to true to check gradient
   if DEBUG:
@@ -105,12 +149,12 @@ def cnn_train():
       num_classes = 10,  # Number of classes (MNIST images fall into 10 classes)
       )
 
-    db_images = zeros((debug_config.image_dim, debug_config.image_dim,
-                       debug_config.num_images))
-    db_labels = zeros(debug_config.num_images)
-    for i in range(debug_config.num_images):
-      db_images[i] = get_matrix(images, i)
-      db_labels[i] = get_matrix(labels, i)
+    db_images = images[0:debug_config.num_images]
+    db_labels = labels[0:debug_config.num_images]
+
+    # Convert images and labels to the API implementation format
+    (db_images, db_labels) = convert_images_labels_to_api_format(
+      db_images, db_labels)
 
     (_, db_theta) = cnn_init(debug_config)
 
@@ -136,8 +180,11 @@ def cnn_train():
   
     
   #======================================================================
-  # step 2: learn parameters
-                   
+  # Train parameters
+  #======================================================================
+
+  # Stochastic Grandient configuration
+    
   sgdoptions = collections.namedtuple('sgdoptions', 
                                       ['epochs',
                                        'minibatch',
@@ -153,19 +200,22 @@ def cnn_train():
   t1 = time.time()
   opt_theta_tuple = min_func_SGD(
     lambda a,b,c,d,e,f: cnn_cost(a, b, c, cnn_config, d, e, f),
-    theta_tuple, images, labels, options)
+    theta_tuple, train_images, train_labels, options)
   print time.time() - t1
 
 
   #======================================================================
-  # step 3: test
-  #  test the performance of the trained model using the mnist test set. your
-  #  accuracy should be above 97# after 3 epochs of training
+  #  Test the performance of the trained model using the mnist test set.
+  #  Accuracy should be above 97% after 3 epochs of training
+  #======================================================================
 
   test_images = load_MNIST_images('../mnist/t10k-images-idx3-ubyte')
   test_labels = load_MNIST_labels('../mnist/t10k-labels-idx1-ubyte')
-  #test_images = test_images[0:1000]
-  #test_labels = test_labels[0:1000]
+
+  # Convert images and labels to the API implementation format
+  (test_images, test_labels) = convert_images_labels_to_api_format(
+    test_images, test_labels)
+
   cnn_test_config = CNNConfig(
     num_images  = size(test_images, 0),
     image_dim   = 28,
@@ -174,7 +224,6 @@ def cnn_train():
     pool_dim    = 2,    # pooling dimension
     num_classes = 10,   # number of classes (mnist images fall into 10 classes)
     )
-
 
   t2 = time.time()
   (cost, preds) = cnn_cost(opt_theta_tuple, test_images, test_labels,
@@ -185,4 +234,4 @@ def cnn_train():
   acc = (np.ones(preds.size))[preds==test_labels].sum()/preds.size
 
   print "Accuracy is: ", acc, "\n"
-  return (opt_theta_tuple, preds, test_labels)
+  return (opt_theta_tuple, preds)

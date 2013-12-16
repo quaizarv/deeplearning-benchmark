@@ -1,25 +1,5 @@
 from wrappers import *
 
-def array_to_stack(param_stack, cnn_config):
-  num_images = cnn_config.num_images
-  image_dim = cnn_config.image_dim
-  num_filters = cnn_config.num_filters
-  filter_dim = cnn_config.filter_dim
-  pool_dim = cnn_config.pool_dim
-  num_classes = cnn_config.num_classes
-
-  out_dim = (image_dim - filter_dim + 1)/pool_dim
-  hidden_size = out_dim*out_dim*num_filters
-
-  start = 0
-  (Wc, start) = get_array_view(param_stack, start, 
-                               (filter_dim, filter_dim, num_filters))
-  (Wd, start) = get_array_view(param_stack, start, (num_classes, hidden_size))
-  (bc, start) = get_array_view(param_stack, start, (num_filters, 1))
-  (bd, start) = get_array_view(param_stack, start, (num_classes, 1))
-  return (Wc, Wd, bc, bd)
-
-
 def scalar_multiply(scalar_val, A):
   return arrayfun(lambda elem: scalar_val * elem, A)
 
@@ -53,8 +33,8 @@ def softmax(A):
 
 def softmax_cost(probs, labels_matrix):
   return scalar_multiply(-1.0/size(labels_matrix, 2), 
-                          matrix_dot_product(arrayfun(np.log, probs),
-                                             labels_matrix))
+                          matrix_elemwise_multiply(arrayfun(np.log, probs),
+                                                   labels_matrix))
 
 def gradient_calculate(delta, activations):
   W_grad = scalar_multiply(
@@ -80,7 +60,6 @@ def delta_propagate(delta_next_layer, weight_matrix,
     return multiply(filter_transpose_multiply(weight_matrix,
                                               delta_next_layer),
                     grad_fun(activations))
-
 
 
 def vector_sum(v):

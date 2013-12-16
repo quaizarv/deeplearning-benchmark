@@ -9,7 +9,7 @@ def min_func_SGD(funObj, theta_tuple, data, labels, options):
   #  funObj     -  function handle which accepts as input theta,
   #                data, labels and returns cost and gradient w.r.t
   #                to theta.
-  #  theta      -  unrolled parameter vector
+  #  theta_tuple-  tuple containing parameter arrays
   #  data       -  stores data in m x n x numExamples tensor
   #  labels     -  corresponding labels in numExamples x 1 vector
   #  options    -  struct to store specific options for optimization
@@ -34,6 +34,7 @@ def min_func_SGD(funObj, theta_tuple, data, labels, options):
   minibatch = options.minibatch
   m = size(labels, 1)
   print m
+
   # Setup for momentum
   mom = 0.5
   momIncrease = 20
@@ -47,8 +48,10 @@ def min_func_SGD(funObj, theta_tuple, data, labels, options):
 
   mb_data = zeros((size(data, 1), size(data, 2), minibatch))
   mb_labels = zeros((minibatch,))
+
   #======================================================================
   # SGD loop
+  #======================================================================
   it = 0
   for e in range(epochs):
     

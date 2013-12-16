@@ -1,4 +1,4 @@
-## Convolution Neural Network Main Module
+## Auto-encoder: Main Module
 
 import time
 import collections
@@ -14,6 +14,14 @@ from sparseAECost import *
 #from minFuncSGD import *
 
 def ae_init(ae_config):
+  """Initialize parameters randomly for an auto-encoder
+                              
+     Parameters:
+       ae_config  -  AE configurationr, e.g. various dimensions
+     Returns:
+       params_array - flattened paramter arrays into a vector
+
+  """
   visible_size = ae_config.visible_size
   hidden_size = ae_config.hidden_size
 
@@ -32,10 +40,19 @@ def ae_init(ae_config):
   return params_array
 
 def ae_train():
-  """ Main routine for training Auto-encoder parameters and testing them
+  """Main routine for training Auto-encoder parameters and testing them
+
+     Returns: 
+
+     cost - cost function consisting of reconstruction, sparsity and
+            regualarization penalty
+
+     opttheta - trained optimal parameters
+
   """
   #======================================================================
-  # STEP 0: Initialize Parameters and Load Data
+  # Initialize Parameters and Load Data
+  #======================================================================
 
   AEConfig = collections.namedtuple('AEConfig', 
                                     ['visible_size',
@@ -53,15 +70,15 @@ def ae_train():
   )
 
   patches = sample_images()
-  patches = np.transpose(patches)
-  display_network(np.random.permutation(patches)[0:200, :], 14)
-  patches = np.transpose(patches)
+  #patches = np.transpose(patches)
+  #display_network(np.random.permutation(patches)[0:200, :], 14)
+  #patches = np.transpose(patches)
 
   params_array = ae_init(ae_config)
 
   #======================================================================
-  # STEP 1: Sanity check the gradient computation using numerical gradient
-  # computation
+  # Code for sanity checking of the gradient computation
+  #======================================================================
 
   DEBUG = False  # set this to true to check gradient
   if DEBUG:
@@ -96,7 +113,8 @@ def ae_train():
     assert diff < 1e-9, 'difference too large. check your gradient computation again'
 
   #======================================================================
-  # STEP 2: Train the autoencoder
+  # Train parameters
+  #======================================================================
 
   t1 = time.time()
   #x = np.array(params_array, np.float64)

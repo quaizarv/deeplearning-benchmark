@@ -37,14 +37,13 @@ def numpy_index_tuple (arr, index_tuple):
   else:
     return index_tuple
 
-def api_dim_tuple (dim_tuple):
-  if (len(dim_tuple) > 2):
-    dim_tuple = dim_tuple[::-1]
+def api_dim_tuple (np_dim_tuple):
+  if (len(np_dim_tuple) > 2):
+    dim_tuple = np_dim_tuple[::-1]
     dim_list = list(dim_tuple)
     dim_list[0] = dim_tuple[1]
     dim_list[1] = dim_tuple[0]
     return tuple(dim_list)
   else:
-    return dim_tuple
-
+    return np_dim_tuple
 

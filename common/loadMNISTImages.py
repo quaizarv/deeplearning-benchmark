@@ -28,7 +28,7 @@ def load_MNIST_images(filename):
     reshape(images, (num_rows, num_cols, num_images))
     images = np.transpose(images, (0, 2, 1))
 
-    # Convert to float32 and rescale to [0,1]
+    # Convert to appropriate float size and rescale to [0,1]
     images = images.astype(floatX) / 255
     return images
 
